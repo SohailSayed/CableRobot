@@ -1,0 +1,23 @@
+# Build output
+Debug/
+Release/
+
+# Object and dependency files
+*.o
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# CubeIDE workspace metadata (machine-specific)
+.settings/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# Mac
+.DS_Store
+
