@@ -69,5 +69,8 @@ void stepper_uart_callback(UART_HandleTypeDef *huart);
  *  Your OLD config (PSC=17999, Period=9999) = 0.47Hz = unusable for stepping!
  * ────────────────────────────────────────────────────────────────────────── */
 void stepper_test(void);
+void stepper_test2(void);
+void stepper_test3(void);
+
 
 #endif /* SRC_STEPPER_H_ */
