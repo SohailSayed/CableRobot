@@ -1,5 +1,6 @@
 #include "stepper.h"
 #include <string.h>
+#include <stdio.h>
 
 /* ── External handles (defined in main.c by CubeMX) ───────────────────────── */
 extern TIM_HandleTypeDef htim1;
@@ -51,6 +52,9 @@ static Motor_t motors[NUM_MOTORS] = {
     { &htim1, TIM_CHANNEL_2, GPIOC, GPIO_PIN_4,  NULL,  0,          0, 0 },
     { &htim3, TIM_CHANNEL_4, GPIOC, GPIO_PIN_6,  GPIOA, GPIO_PIN_5, 0, 0 },
 };
+
+volatile uint8_t pending_command = 0;
+uint8_t pending_buf[25];
 
 /* ── Packet encoding helpers ───────────────────────────────────────────────── */
 #define SPD(x)   ((uint16_t)((x) / 10))   // encode steps/sec for packet
@@ -104,8 +108,10 @@ static void motor_stop_internal(Motor_t *m)
         HAL_GPIO_WritePin(m->brake_port, m->brake_pin, BRAKE_ENGAGE);
 }
 
-static void parse_multi_command(uint8_t *buf, uint8_t num)
+void parse_multi_command(uint8_t *buf, uint8_t num)
 {
+//    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); - this turns on
+
     // Pass 1: stop only commanded motors and release their brakes
     for (int i = 0; i < num; i++) {
         uint8_t *c = &buf[1 + i * SINGLE_CMD_LEN];
@@ -117,8 +123,9 @@ static void parse_multi_command(uint8_t *buf, uint8_t num)
             HAL_GPIO_WritePin(m->brake_port, m->brake_pin, BRAKE_RELEASE);
     }
 
+//    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     HAL_Delay(BRAKE_RELEASE_DELAY_MS);
-
+    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
     // Pass 2: configure + start all commanded motors simultaneously
     for (int i = 0; i < num; i++) {
         uint8_t *c = &buf[1 + i * SINGLE_CMD_LEN];
@@ -181,7 +188,14 @@ void stepper_uart_callback(UART_HandleTypeDef *huart)
 {
     if (huart->Instance != USART2) return;
 
+//    HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+
     cmd_buf[cmd_idx++] = rx_byte;
+
+//    char dbg[32];
+//	snprintf(dbg, sizeof(dbg), "rx[%d]=%d\r\n", cmd_idx-1, rx_byte);
+//	HAL_UART_Transmit(&huart2, (uint8_t*)dbg, strlen(dbg), 10);
+//
 
     if (cmd_idx == 1) {
         uint8_t num = cmd_buf[0];
@@ -191,10 +205,12 @@ void stepper_uart_callback(UART_HandleTypeDef *huart)
             expected_len = 1 + num * SINGLE_CMD_LEN;
         }
     } else if (cmd_idx == expected_len) {
-        parse_multi_command(cmd_buf, cmd_buf[0]);
+        memcpy(pending_buf, cmd_buf, cmd_idx);
+        pending_command = cmd_buf[0];
         cmd_idx = 0;
         expected_len = 0;
     }
+
 
     HAL_UART_Receive_IT(&huart2, &rx_byte, 1);
 }
@@ -208,7 +224,7 @@ void stepper_test(void)
 {
     // Motor 3: CW, 800 steps/sec, 1600 pulses (1 rev)
     uint8_t buf[] = {1,
-        2, 0, HI(SPD(2000)), LO(SPD(2000)), HI(1600), LO(1600),
+        2, 0, HI(SPD(1000)), LO(SPD(1000)), 0, 0,
     };
     parse_multi_command(buf, buf[0]);
 }
@@ -228,6 +244,7 @@ void stepper_test3(void)
     uint16_t speed = SPD(800);
     uint16_t steps = 1600;
     uint8_t buf[] = {1,
+		1, 0, HI(speed), LO(speed), HI(steps), LO(steps),
         3, 0, HI(speed), LO(speed), HI(steps), LO(steps),
     };
     parse_multi_command(buf, buf[0]);

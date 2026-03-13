@@ -72,5 +72,10 @@ void stepper_test(void);
 void stepper_test2(void);
 void stepper_test3(void);
 
+void parse_multi_command(uint8_t *buf, uint8_t num);
+
+extern volatile uint8_t pending_command;
+extern uint8_t pending_buf[];
+
 
 #endif /* SRC_STEPPER_H_ */

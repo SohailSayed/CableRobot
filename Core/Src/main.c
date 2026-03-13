@@ -104,7 +104,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   stepper_init();
-  stepper_test();
+//  stepper_test();
 //  stepper_test2();
 //  stepper_test3();
 
@@ -117,7 +117,10 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+	  if (pending_command > 0) {
+	          parse_multi_command(pending_buf, pending_command);
+	          pending_command = 0;
+	      }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
